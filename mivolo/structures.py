@@ -315,7 +315,7 @@ class PersonAndFaceResult:
         tracked_objects: Dict[int, List[AGE_GENDER_TYPE]],
         fguid: int = -1,
         pguid: int = -1,
-        minimum_sample_size: int = 10,
+        minimum_sample_size: int = 30,
     ) -> AGE_GENDER_TYPE:
 
         assert fguid != -1 or pguid != -1, "Incorrect tracking behaviour"

@@ -19,7 +19,7 @@ class Detector:
         device: str = "cuda",
         half: bool = True,
         verbose: bool = False,
-        conf_thresh: float = 0.4,
+        conf_thresh: float = 0.6,
         iou_thresh: float = 0.7,
     ):
         self.yolo = YOLO(weights)

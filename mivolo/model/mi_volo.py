@@ -83,6 +83,7 @@ class MiVOLO:
         use_persons: bool = True,
         verbose: bool = False,
         torchcompile: Optional[str] = None,
+        gender_threshold=0.9
     ):
         self.verbose = verbose
         self.device = torch.device(device)
@@ -125,6 +126,8 @@ class MiVOLO:
         self.model.eval()
         if self.half:
             self.model = self.model.half()
+
+        self.gender_threshold = gender_threshold
 
     def warmup(self, batch_size: int, steps=10):
         if self.meta.with_persons_model:
@@ -188,6 +191,22 @@ class MiVOLO:
             face_ind = faces_inds[index]
             body_ind = bodies_inds[index]
 
+            if gender_probs is not None:
+                gender = "male" if gender_indx[index].item() == 0 else "female"
+                gender_score = gender_probs[index].item()
+                _logger.info(f"\tgender: {gender} [{int(gender_score * 100)}%]")
+
+                if gender_score < self.gender_threshold:
+                    _logger.info(f"Remove gender prediction due to low score")
+                    detected_bboxes.set_gender(face_ind, None, None)
+                    detected_bboxes.set_gender(body_ind, None, None)
+                    detected_bboxes.set_age(face_ind, None)
+                    detected_bboxes.set_age(body_ind, None)
+                    continue
+
+                detected_bboxes.set_gender(face_ind, gender, gender_score)
+                detected_bboxes.set_gender(body_ind, gender, gender_score)
+
             # get_age
             age = age_output[index].item()
             age = age * (self.meta.max_age - self.meta.min_age) + self.meta.avg_age
@@ -197,15 +216,6 @@ class MiVOLO:
             detected_bboxes.set_age(body_ind, age)
 
             _logger.info(f"\tage: {age}")
-
-            if gender_probs is not None:
-                gender = "male" if gender_indx[index].item() == 0 else "female"
-                gender_score = gender_probs[index].item()
-
-                _logger.info(f"\tgender: {gender} [{int(gender_score * 100)}%]")
-
-                detected_bboxes.set_gender(face_ind, gender, gender_score)
-                detected_bboxes.set_gender(body_ind, gender, gender_score)
 
     def prepare_crops(self, image: np.ndarray, detected_bboxes: PersonAndFaceResult):
 

@@ -21,6 +21,7 @@ class Predictor:
             verbose=verbose,
         )
         self.draw = config.draw
+        self.detected_objects_history: Dict[int, List[AGE_GENDER_TYPE]] = defaultdict(list)
 
     def recognize(self, image: np.ndarray) -> Tuple[PersonAndFaceResult, Optional[np.ndarray]]:
         detected_objects: PersonAndFaceResult = self.detector.predict(image)
@@ -66,3 +67,28 @@ class Predictor:
             if self.draw:
                 frame = detected_objects.plot()
             yield detected_objects_history, frame
+
+    def recognize_frame_stream(self, image: np.ndarray) -> Tuple[PersonAndFaceResult, Optional[np.ndarray]]:
+        detected_objects: PersonAndFaceResult = self.detector.track(image)
+        self.age_gender_model.predict(image, detected_objects)
+        current_frame_objs = detected_objects.get_results_for_tracking()
+        cur_persons: Dict[int, AGE_GENDER_TYPE] = current_frame_objs[0]
+        cur_faces: Dict[int, AGE_GENDER_TYPE] = current_frame_objs[1]
+
+        # add tr_persons and tr_faces to history
+        for guid, data in cur_persons.items():
+            # not useful for tracking :)
+            if None not in data:
+                self.detected_objects_history[guid].append(data)
+        for guid, data in cur_faces.items():
+            if None not in data:
+                self.detected_objects_history[guid].append(data)
+
+        detected_objects.set_tracked_age_gender(self.detected_objects_history)
+
+        out_im = None
+        if self.draw:
+            # plot results on image
+            out_im = detected_objects.plot()
+
+        return detected_objects, out_im
